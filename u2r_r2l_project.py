@@ -394,3 +394,66 @@ fuzzy_risk_levels = np.array([fuzzy_risk_score(pred) for pred in hybrid_predicti
 print("\nSample Fuzzy Risk Output:")
 for i in range(20):
     print("Predicted:", hybrid_predictions[i], "→ Risk Level:", fuzzy_risk_levels[i])
+    
+import json
+from sklearn.metrics import classification_report, confusion_matrix
+
+# ----- FINAL METRICS EXPORT BLOCK -----
+
+# Classification report dictionary
+report_dict = classification_report(
+    y_test,
+    hybrid_predictions,
+    output_dict=True
+)
+
+# Confusion matrix
+cm = confusion_matrix(y_test, hybrid_predictions)
+
+# Convert confusion matrix to list
+cm_list = cm.tolist()
+
+# Final structured metrics
+dashboard_metrics = {
+    "model_name": "Hybrid Neuro-Fuzzy IDS",
+    "baseline_accuracy": 0.75,
+    "smote_accuracy": 0.76,
+    "hybrid_accuracy": 0.79,
+    "binary_accuracy": 0.84,
+    "macro_f1": report_dict["macro avg"]["f1-score"],
+    "weighted_f1": report_dict["weighted avg"]["f1-score"],
+    "class_metrics": {
+        "dos": report_dict["dos"],
+        "normal": report_dict["normal"],
+        "probe": report_dict["probe"],
+        "r2l": report_dict["r2l"],
+        "u2r": report_dict["u2r"],
+    },
+    "confusion_matrix": cm_list
+}
+
+# Save to JSON file
+with open("dashboard_metrics.json", "w") as f:
+    json.dump(dashboard_metrics, f, indent=4)
+
+print("\nDashboard metrics exported to dashboard_metrics.json")
+
+import pickle
+
+# Save Isolation Forest
+with open("isolation_forest.pkl", "wb") as f:
+    pickle.dump(iso, f)
+
+# Save ANN
+with open("mlp_stage2.pkl", "wb") as f:
+    pickle.dump(mlp_stage2, f)
+
+# Save Label Encoder
+with open("label_encoder.pkl", "wb") as f:
+    pickle.dump(label_encoder, f)
+
+# Save Scaler
+with open("scaler.pkl", "wb") as f:
+    pickle.dump(scaler, f)
+
+print("✅ All models saved successfully.")

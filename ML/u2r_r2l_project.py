@@ -17,8 +17,8 @@ columns = [
 ]
 
 # Load train and test
-train_df = pd.read_csv("KDDTrain+.txt", names=columns)
-test_df = pd.read_csv("KDDTest+.txt", names=columns)
+train_df = pd.read_csv("./data/KDDTrain+.txt", names=columns)
+test_df = pd.read_csv("./data/KDDTest+.txt", names=columns)
 
 print("Train shape:", train_df.shape)
 print("Test shape:", test_df.shape)

@@ -1,7 +1,41 @@
+# ============================================================
+# NEURO-FUZZY HYBRID IDS WITH XGBOOST + ENSEMBLE BOOST
+# ============================================================
+
 import pandas as pd
 import numpy as np
+import json
+import pickle
+import matplotlib.pyplot as plt
 
-# Column names for NSL-KDD (41 features + label + difficulty level)
+from sklearn.ensemble import (
+    RandomForestClassifier,
+    IsolationForest,
+    VotingClassifier
+)
+from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.metrics import (
+    classification_report,
+    confusion_matrix,
+    accuracy_score
+)
+from sklearn.model_selection import RandomizedSearchCV, cross_val_score
+
+from imblearn.over_sampling import SMOTE
+from xgboost import XGBClassifier
+
+# ===========================
+# FAST / HEAVY TUNING SWITCH
+# ===========================
+FAST_TUNING = True
+N_ITER = 20 if FAST_TUNING else 50
+
+# ============================================================
+# LOAD DATA
+# ============================================================
+
 columns = [
     'duration','protocol_type','service','flag','src_bytes','dst_bytes','land',
     'wrong_fragment','urgent','hot','num_failed_logins','logged_in','num_compromised',
@@ -16,23 +50,15 @@ columns = [
     'dst_host_srv_rerror_rate','label','difficulty'
 ]
 
-# Load train and test
 train_df = pd.read_csv("./data/KDDTrain+.txt", names=columns)
-test_df = pd.read_csv("./data/KDDTest+.txt", names=columns)
-
-print("Train shape:", train_df.shape)
-print("Test shape:", test_df.shape)
+test_df  = pd.read_csv("./data/KDDTest+.txt", names=columns)
 
 train_df.drop("difficulty", axis=1, inplace=True)
 test_df.drop("difficulty", axis=1, inplace=True)
 
-print("\nTrain Label Distribution:")
-print(train_df['label'].value_counts())
-
-print("\nTest Label Distribution:")
-print(test_df['label'].value_counts())
-
-# Attack category mapping based on NSL-KDD documentation
+# ============================================================
+# ATTACK GROUPING
+# ============================================================
 
 dos_attacks = [
     'neptune','smurf','back','teardrop','pod','land',
@@ -54,7 +80,6 @@ u2r_attacks = [
     'buffer_overflow','loadmodule','rootkit','perl','xterm','ps'
 ]
 
-
 def map_attack(label):
     if label == 'normal':
         return 'normal'
@@ -69,309 +94,267 @@ def map_attack(label):
     else:
         return 'unknown'
 
-
 train_df['attack_type'] = train_df['label'].apply(map_attack)
-test_df['attack_type'] = test_df['label'].apply(map_attack)
+test_df['attack_type']  = test_df['label'].apply(map_attack)
 
-print("\nNew Train Distribution:")
-print(train_df['attack_type'].value_counts())
-
-print("\nNew Test Distribution:")
-print(test_df['attack_type'].value_counts())
-
-# Drop original label column
 train_df.drop("label", axis=1, inplace=True)
 test_df.drop("label", axis=1, inplace=True)
 
-# Separate features and target
 X_train = train_df.drop("attack_type", axis=1)
 y_train = train_df["attack_type"]
 
 X_test = test_df.drop("attack_type", axis=1)
 y_test = test_df["attack_type"]
 
-# One-hot encode categorical columns
+# One-hot encoding
 X_train = pd.get_dummies(X_train)
-X_test = pd.get_dummies(X_test)
-
-# Align test columns to train columns
+X_test  = pd.get_dummies(X_test)
 X_train, X_test = X_train.align(X_test, join='left', axis=1, fill_value=0)
 
-print("Final Train Shape:", X_train.shape)
-print("Final Test Shape:", X_test.shape)
+print("Train shape:", X_train.shape)
+print("Test shape:", X_test.shape)
 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix
+# ============================================================
+# BASELINE RANDOM FOREST
+# ============================================================
 
-# Baseline model
-rf = RandomForestClassifier(
-    n_estimators=100,
-    random_state=42,
-    n_jobs=-1
-)
-
+rf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
 rf.fit(X_train, y_train)
-
 y_pred = rf.predict(X_test)
 
-print("\nClassification Report (Baseline):")
+print("\nBaseline RF:")
 print(classification_report(y_test, y_pred))
 
-print("\nConfusion Matrix:")
-print(confusion_matrix(y_test, y_pred))
-
-from imblearn.over_sampling import SMOTE
-
-print("\nBefore SMOTE:")
-print(y_train.value_counts())
+# ============================================================
+# SMOTE RANDOM FOREST
+# ============================================================
 
 smote = SMOTE(random_state=42)
 X_train_smote, y_train_smote = smote.fit_resample(X_train, y_train)
 
-print("\nAfter SMOTE:")
-print(pd.Series(y_train_smote).value_counts())
-
-# Train on SMOTE-balanced data
-rf_smote = RandomForestClassifier(
-    n_estimators=100,
-    random_state=42,
-    n_jobs=-1
-)
-
+rf_smote = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
 rf_smote.fit(X_train_smote, y_train_smote)
-
 y_pred_smote = rf_smote.predict(X_test)
 
-print("\nClassification Report (SMOTE):")
+print("\nSMOTE RF:")
 print(classification_report(y_test, y_pred_smote))
 
-print("\nConfusion Matrix (SMOTE):")
-print(confusion_matrix(y_test, y_pred_smote))
+# ============================================================
+# ISOLATION FOREST (STAGE 1)
+# ============================================================
 
-# RandomForest with class weights
-rf_weighted = RandomForestClassifier(
-    n_estimators=100,
-    random_state=42,
-    n_jobs=-1,
-    class_weight="balanced"
-)
-
-rf_weighted.fit(X_train, y_train)
-
-y_pred_weighted = rf_weighted.predict(X_test)
-
-print("\nClassification Report (Class Weight Balanced):")
-print(classification_report(y_test, y_pred_weighted))
-
-print("\nConfusion Matrix (Class Weight Balanced):")
-print(confusion_matrix(y_test, y_pred_weighted))
-
-# Binary labels for anomaly detection
-y_train_binary = (y_train != "normal").astype(int)
-y_test_binary = (y_test != "normal").astype(int)
-
-from sklearn.ensemble import IsolationForest
-
-# Use only normal traffic for training
 X_train_normal = X_train[y_train == "normal"]
 
 iso = IsolationForest(
     n_estimators=100,
-    contamination=0.15,  # expected anomaly proportion (we can tune later)
+    contamination=0.2,
     random_state=42,
     n_jobs=-1
 )
 
 iso.fit(X_train_normal)
 
-# Predict on test data
 iso_preds = iso.predict(X_test)
-
-# Convert predictions
-# IsolationForest outputs:
-# 1 = normal
-# -1 = anomaly
 iso_preds_binary = np.where(iso_preds == 1, 0, 1)
 
-from sklearn.ensemble import IsolationForest
+print("\nIsolation Forest Binary:")
+print(classification_report(
+    (y_test != "normal").astype(int),
+    iso_preds_binary
+))
 
-# Use only normal traffic for training
-X_train_normal = X_train[y_train == "normal"]
+# ============================================================
+# ANN STAGE-2 HYBRID
+# ============================================================
 
-iso = IsolationForest(
-    n_estimators=100,
-    contamination=0.2,  # expected anomaly proportion (we can tune later)
-    random_state=42,
-    n_jobs=-1
-)
-
-iso.fit(X_train_normal)
-
-# Predict on test data
-iso_preds = iso.predict(X_test)
-
-# Convert predictions
-# IsolationForest outputs:
-# 1 = normal
-# -1 = anomaly
-iso_preds_binary = np.where(iso_preds == 1, 0, 1)
-
-from sklearn.metrics import classification_report
-
-print("\nIsolation Forest (Binary Detection):")
-print(classification_report(y_test_binary, iso_preds_binary))
-
-# Create a DataFrame for analysis
-results_df = pd.DataFrame({
-    "true_label": y_test.values,
-    "anomaly_pred": iso_preds_binary
-})
-
-# Filter U2R and R2L
-u2r_results = results_df[results_df["true_label"] == "u2r"]
-r2l_results = results_df[results_df["true_label"] == "r2l"]
-
-u2r_detected = u2r_results["anomaly_pred"].sum()
-r2l_detected = r2l_results["anomaly_pred"].sum()
-
-print("\nU2R Detection Rate:")
-print(f"Detected {u2r_detected} out of {len(u2r_results)}")
-
-print("\nR2L Detection Rate:")
-print(f"Detected {r2l_detected} out of {len(r2l_results)}")
-
-print("\nU2R Recall (Anomaly):", u2r_detected / len(u2r_results))
-print("R2L Recall (Anomaly):", r2l_detected / len(r2l_results))
-
-# Train classifier only on attack samples
 X_train_attack = X_train[y_train != "normal"]
 y_train_attack = y_train[y_train != "normal"]
 
-print("Attack-only training shape:", X_train_attack.shape)
-print(y_train_attack.value_counts())
-
-from imblearn.over_sampling import SMOTE
-
-print("\nBefore SMOTE (Attack-only):")
-print(y_train_attack.value_counts())
-
 smote_attack = SMOTE(random_state=42)
 X_train_attack_smote, y_train_attack_smote = smote_attack.fit_resample(
     X_train_attack, y_train_attack
 )
 
-print("\nAfter SMOTE (Attack-only):")
-print(pd.Series(y_train_attack_smote).value_counts())
-
-from imblearn.over_sampling import SMOTE
-
-print("\nBefore SMOTE (Attack-only):")
-print(y_train_attack.value_counts())
-
-smote_attack = SMOTE(random_state=42)
-X_train_attack_smote, y_train_attack_smote = smote_attack.fit_resample(
-    X_train_attack, y_train_attack
-)
-
-print("\nAfter SMOTE (Attack-only):")
-print(pd.Series(y_train_attack_smote).value_counts())
-
-# from xgboost import XGBClassifier
-# from sklearn.preprocessing import LabelEncoder
-
-# # XGBoost requires numeric labels → encode attack types
-# label_encoder = LabelEncoder()
-# y_train_attack_encoded = label_encoder.fit_transform(y_train_attack_smote)
-
-# # Create XGBoost classifier
-# xgb_stage2 = XGBClassifier(
-#     n_estimators=300,
-#     max_depth=6,
-#     learning_rate=0.1,
-#     subsample=0.8,
-#     colsample_bytree=0.8,
-#     objective="multi:softmax",   # multi-class classification
-#     num_class=4,                 # dos, probe, r2l, u2r
-#     random_state=42,
-#     n_jobs=-1,
-#     eval_metric="mlogloss"
-# )
-
-# # Train Stage-2 model
-# xgb_stage2.fit(X_train_attack_smote, y_train_attack_encoded)
-
-# # Hybrid prediction (vectorized)
-# hybrid_predictions = np.array(["normal"] * len(X_test))
-
-# # Get anomaly indices from Isolation Forest
-# anomaly_indices = np.where(iso_preds_binary == 1)[0]
-
-# # Predict encoded attack labels
-# attack_preds_encoded = xgb_stage2.predict(X_test.iloc[anomaly_indices])
-
-# # Decode back to original labels
-# attack_preds_decoded = label_encoder.inverse_transform(attack_preds_encoded)
-
-# # Fill predictions
-# hybrid_predictions[anomaly_indices] = attack_preds_decoded
-
-# print("\nHybrid Model Classification Report:")
-# print(classification_report(y_test, hybrid_predictions))
-
-# print("\nHybrid Confusion Matrix:")
-# print(confusion_matrix(y_test, hybrid_predictions))
-
-from sklearn.neural_network import MLPClassifier
-from sklearn.preprocessing import LabelEncoder
-
-# Encode attack labels (ANN needs numeric labels)
 label_encoder = LabelEncoder()
 y_train_attack_encoded = label_encoder.fit_transform(y_train_attack_smote)
 
-# Create MLP (Backpropagation Network)
+scaler = StandardScaler()
+X_train_attack_scaled = scaler.fit_transform(X_train_attack_smote)
+X_test_scaled = scaler.transform(X_test)
+
 mlp_stage2 = MLPClassifier(
-    hidden_layer_sizes=(128, 64),   # 2 hidden layers
+    hidden_layer_sizes=(128, 64),
     activation='relu',
-    solver='adam',
     max_iter=200,
     early_stopping=True,
     random_state=42
 )
 
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import classification_report, confusion_matrix
+mlp_stage2.fit(X_train_attack_scaled, y_train_attack_encoded)
 
-scaler = StandardScaler()
-X_train_attack_smote = scaler.fit_transform(X_train_attack_smote)
-X_test_scaled = scaler.transform(X_test)
-
-# Then use X_test_scaled in prediction instead of X_test
-
-# Train ANN
-mlp_stage2.fit(X_train_attack_smote, y_train_attack_encoded)
-
-# Hybrid prediction (vectorized)
-hybrid_predictions = np.array(["normal"] * len(X_test))
-
-# Get anomaly indices
+hybrid_predictions_ann = np.array(["normal"] * len(X_test))
 anomaly_indices = np.where(iso_preds_binary == 1)[0]
 
-# Predict attack classes using ANN
 attack_preds_encoded = mlp_stage2.predict(X_test_scaled[anomaly_indices])
-
-# Decode labels back
 attack_preds_decoded = label_encoder.inverse_transform(attack_preds_encoded)
 
-# Fill predictions
-hybrid_predictions[anomaly_indices] = attack_preds_decoded
+hybrid_predictions_ann[anomaly_indices] = attack_preds_decoded
 
-print("\nHybrid Model Classification Report:")
-print(classification_report(y_test, hybrid_predictions))
+print("\nHybrid ANN Report:")
+print(classification_report(y_test, hybrid_predictions_ann))
 
-print("\nHybrid Confusion Matrix:")
-print(confusion_matrix(y_test, hybrid_predictions))
+# ============================================================
+# XGBOOST STAGE-2 HYBRID (TUNED)
+# ============================================================
+from tqdm import tqdm
+from sklearn.model_selection import ParameterSampler
 
-# --- Fuzzy Risk Scoring Layer ---
+param_dist = {
+    "n_estimators": [200, 300],
+    "max_depth": [4, 6],
+    "learning_rate": [0.05, 0.1],
+    "subsample": [0.8, 0.9],
+    "colsample_bytree": [0.8],
+    "gamma": [0, 0.1]
+}
+
+# Manual tuning with progress bar
+param_list = list(
+    ParameterSampler(param_dist, n_iter=N_ITER, random_state=42)
+)
+
+best_score = -np.inf
+best_params = None
+best_model = None
+
+print("\nStarting XGBoost tuning with progress bar...\n")
+
+for params in tqdm(param_list):
+
+    model = XGBClassifier(
+        objective="multi:softprob",
+        num_class=4,
+        eval_metric="mlogloss",
+        tree_method="hist",
+        max_bin=256,
+        random_state=42,
+        n_jobs=-1,
+        **params
+    )
+
+    scores = cross_val_score(
+        model,
+        X_train_attack_smote,
+        y_train_attack_encoded,
+        cv=3 if FAST_TUNING else 5,
+        scoring="f1_macro",
+        n_jobs=-1
+    )
+
+    mean_score = scores.mean()
+
+    if mean_score > best_score:
+        best_score = mean_score
+        best_params = params
+        best_model = model
+
+print("\nBest XGBoost Params:", best_params)
+print("Best CV F1:", best_score)
+
+xgb_stage2 = best_model
+xgb_stage2.fit(X_train_attack_smote, y_train_attack_encoded)
+
+# Hybrid Prediction (XGB)
+hybrid_predictions_xgb = np.array(["normal"] * len(X_test))
+attack_preds_encoded = xgb_stage2.predict(X_test.iloc[anomaly_indices])
+attack_preds_decoded = label_encoder.inverse_transform(attack_preds_encoded)
+hybrid_predictions_xgb[anomaly_indices] = attack_preds_decoded
+
+print("\nHybrid XGBoost Report:")
+print(classification_report(y_test, hybrid_predictions_xgb))
+
+# ============================================================
+# FULL MULTICLASS XGBOOST (FOR ENSEMBLE)
+# ============================================================
+
+xgb_full_model = XGBClassifier(
+    tree_method="hist",
+    max_bin=256,
+    n_estimators=150,
+    max_depth=6,
+    learning_rate=0.1,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    objective="multi:softprob",
+    eval_metric="mlogloss",
+    random_state=42,
+    n_jobs=-1
+)
+
+# ============================================================
+# FULL MULTICLASS XGBOOST (FOR ENSEMBLE) - FIXED
+# ============================================================
+
+label_encoder_full = LabelEncoder()
+y_train_smote_encoded = label_encoder_full.fit_transform(y_train_smote)
+
+xgb_full_model = XGBClassifier(
+    n_estimators=150,
+    max_depth=6,
+    learning_rate=0.1,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    objective="multi:softprob",
+    eval_metric="mlogloss",
+    random_state=42,
+    n_jobs=-1
+)
+
+xgb_full_model.fit(X_train_smote, y_train_smote_encoded)
+
+# ============================================================
+# ENSEMBLE BOOST STAGE
+# ============================================================
+
+rf_full = RandomForestClassifier(
+    n_estimators=200,
+    class_weight="balanced",
+    random_state=42,
+    n_jobs=-1
+)
+
+svm_full = SVC(
+    kernel="rbf",
+    C=5,
+    class_weight="balanced",
+    probability=False,
+    random_state=42
+)
+
+rf_full.fit(X_train_smote, y_train_smote)
+svm_full.fit(X_train_smote, y_train_smote)
+
+voting_model = VotingClassifier(
+    estimators=[
+        ("xgb", xgb_full_model),
+        ("rf", rf_full),
+        ("svm", svm_full)
+    ],
+    voting="hard",
+    n_jobs=-1
+)
+
+voting_model.fit(X_train_smote, y_train_smote)
+
+vote_pred_encoded = voting_model.predict(X_test)
+vote_pred = label_encoder_full.inverse_transform(vote_pred_encoded)
+
+print("\nVoting Ensemble Report:")
+print(classification_report(y_test, vote_pred))
+
+# ============================================================
+# FUZZY RISK LAYER
+# ============================================================
 
 def fuzzy_risk_score(attack_type):
     if attack_type == "normal":
@@ -387,73 +370,48 @@ def fuzzy_risk_score(attack_type):
     else:
         return "Unknown"
 
-# Apply fuzzy risk scoring
-fuzzy_risk_levels = np.array([fuzzy_risk_score(pred) for pred in hybrid_predictions])
+# ============================================================
+# EXPORT METRICS
+# ============================================================
 
-# Example: print first 20 predictions with risk
-print("\nSample Fuzzy Risk Output:")
-for i in range(20):
-    print("Predicted:", hybrid_predictions[i], "→ Risk Level:", fuzzy_risk_levels[i])
-    
-import json
-from sklearn.metrics import classification_report, confusion_matrix
-
-# ----- FINAL METRICS EXPORT BLOCK -----
-
-# Classification report dictionary
 report_dict = classification_report(
     y_test,
-    hybrid_predictions,
+    hybrid_predictions_xgb,
     output_dict=True
 )
 
-# Confusion matrix
-cm = confusion_matrix(y_test, hybrid_predictions)
-
-# Convert confusion matrix to list
-cm_list = cm.tolist()
-
-# Final structured metrics
 dashboard_metrics = {
     "model_name": "Hybrid Neuro-Fuzzy IDS",
-    "baseline_accuracy": 0.75,
-    "smote_accuracy": 0.76,
-    "hybrid_accuracy": 0.79,
-    "binary_accuracy": 0.84,
+    "baseline_accuracy": accuracy_score(y_test, y_pred),
+    "smote_accuracy": accuracy_score(y_test, y_pred_smote),
+    "hybrid_accuracy": accuracy_score(y_test, hybrid_predictions_xgb),
+    "binary_accuracy": accuracy_score(
+        (y_test != "normal").astype(int),
+        iso_preds_binary
+    ),
     "macro_f1": report_dict["macro avg"]["f1-score"],
     "weighted_f1": report_dict["weighted avg"]["f1-score"],
-    "class_metrics": {
-        "dos": report_dict["dos"],
-        "normal": report_dict["normal"],
-        "probe": report_dict["probe"],
-        "r2l": report_dict["r2l"],
-        "u2r": report_dict["u2r"],
-    },
-    "confusion_matrix": cm_list
+    "confusion_matrix": confusion_matrix(
+        y_test,
+        hybrid_predictions_xgb
+    ).tolist()
 }
 
-# Save to JSON file
 with open("dashboard_metrics.json", "w") as f:
     json.dump(dashboard_metrics, f, indent=4)
 
-print("\nDashboard metrics exported to dashboard_metrics.json")
+print("\nDashboard metrics saved.")
 
-import pickle
+# ============================================================
+# SAVE MODELS
+# ============================================================
 
-# Save Isolation Forest
-with open("isolation_forest.pkl", "wb") as f:
-    pickle.dump(iso, f)
+pickle.dump(iso, open("isolation_forest.pkl", "wb"))
+pickle.dump(mlp_stage2, open("mlp_stage2.pkl", "wb"))
+pickle.dump(xgb_stage2, open("xgb_stage2.pkl", "wb"))
+pickle.dump(xgb_full_model, open("xgb_full_model.pkl", "wb"))
+pickle.dump(voting_model, open("voting_ensemble.pkl", "wb"))
+pickle.dump(label_encoder, open("label_encoder.pkl", "wb"))
+pickle.dump(scaler, open("scaler.pkl", "wb"))
 
-# Save ANN
-with open("mlp_stage2.pkl", "wb") as f:
-    pickle.dump(mlp_stage2, f)
-
-# Save Label Encoder
-with open("label_encoder.pkl", "wb") as f:
-    pickle.dump(label_encoder, f)
-
-# Save Scaler
-with open("scaler.pkl", "wb") as f:
-    pickle.dump(scaler, f)
-
-print("✅ All models saved successfully.")
+print("All models saved successfully.")

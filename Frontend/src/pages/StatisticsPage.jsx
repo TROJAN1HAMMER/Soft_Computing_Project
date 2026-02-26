@@ -310,9 +310,9 @@ export default function StatisticsPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Container maxWidth={false} sx={{ px: 4 }}>
         {/* Page Header */}
-        <Box sx={{ textAlign: "center", mb: 3 }}>
+        <Box sx={{ textAlign: "center", mb: 3,py :6 }}>
           <Typography variant="h3" fontWeight="700">
             Model Statistics Dashboard
           </Typography>
@@ -325,8 +325,8 @@ export default function StatisticsPage() {
         {/* ROW 1: Model Summary, Target Distribution, Top 10 Feature Importance */}
         <Grid container spacing={2} sx={{ mb: 2, alignItems: "stretch" }}>
           {/* Model Summary */}
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: 330 }}>
+          <Grid item xs={12} md={4} sx={{ flex: 1.1 }}>
+            <Card sx={{ height: 350 }}>
               <CardHeader title="Model Summary" />
               <CardContent>
                 <Typography>
@@ -368,8 +368,8 @@ export default function StatisticsPage() {
           </Grid>
 
           {/* Target Distribution - Before vs After SMOTE */}
-          <Grid item xs={12} md={4}>
-            <Card>
+          <Grid item xs={12} md={4} sx={{ flex: 1.2 }}>
+            <Card sx={{ height: 350}}>
               <CardHeader
                 avatar={<SupervisedUserCircleIcon color="primary" />}
                 title="Target Distribution — Before vs After SMOTE"
@@ -398,8 +398,8 @@ export default function StatisticsPage() {
           </Grid>
 
           {/* Top 10 Feature Importance */}
-          <Grid item xs={12} md={4}>
-            <Card sx={{ width: 410 }}>
+          <Grid item xs={12} md={6} sx={{ flex: 1.3 }}>
+            <Card sx={{ height: 350 }}>
               <CardHeader
                 avatar={<TrendingUpIcon color="primary" />}
                 title="Top 10 Feature Importances"
@@ -435,7 +435,7 @@ export default function StatisticsPage() {
         <Grid container spacing={2} sx={{ mb: 2 }}>
           {/* Distribution of Top 5 Features by Attack Type */}
           <Grid item xs={12} md={6} sx={{ flex: 1.1 }}>
-            <Card>
+            <Card sx={{ height: 525 }}>
               <CardHeader
                 avatar={<MonitorHeartIcon color="primary" />}
                 title="Distribution of Top 5 Features by Attack Type"
@@ -482,7 +482,7 @@ export default function StatisticsPage() {
 
           {/* Feature Importance 11-20 */}
           <Grid item xs={12} md={6} sx={{ flex: 1.2 }}>
-            <Card>
+            <Card sx={{ height: 525 }}>
               <CardHeader
                 avatar={<TrendingUpIcon color="primary" />}
                 title="Feature Importances 11-20"
@@ -515,7 +515,7 @@ export default function StatisticsPage() {
         </Grid>
 
         {/* REMAINING ROWS - Feature Correlation, Confusion Matrix, ROC AUC */}
-        <Grid container spacing={3}>
+        <Grid container spacing={2}>
           {/* Feature Correlation Matrix */}
           <Grid item xs={12} md={6}>
             <Card>
@@ -596,24 +596,22 @@ export default function StatisticsPage() {
           </Grid>
 
           {/* Confusion Matrix - Raw & Normalized */}
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={6} sx={{ flex: 1.1 }}>
             <Card>
               <CardHeader
                 avatar={<PsychologyIcon color="primary" />}
                 title="Model Prediction Accuracy — Confusion Matrix"
                 subheader="Raw counts (left) and normalized (%) (right)"
               />
-              <CardContent
-                sx={{ display: "flex", gap: 2, flexDirection: "column" }}
-              >
-                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+              <CardContent sx={{display: "flex",height:800, gap: 2, flexDirection: "column" }}>
+                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                   {/* Raw matrix grid */}
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="subtitle2">Raw Counts</Typography>
                     <Box
                       sx={{
                         display: "grid",
-                        gridTemplateColumns: `120px repeat(${CM_LABELS.length}, 1fr)`,
+                        gridTemplateColumns: `80px repeat(${CM_LABELS.length}, 1fr)`,
                         gap: 1,
                         mt: 1,
                       }}
@@ -716,14 +714,14 @@ export default function StatisticsPage() {
           </Grid>
 
           {/* ROC AUC Radar Chart */}
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={6} sx={{ flex: 1.2 }}>
             <Card>
               <CardHeader
                 avatar={<MonitorHeartIcon color="primary" />}
                 title="ROC AUC (One-vs-Rest)"
                 subheader="Higher is better (max 1.0)"
               />
-              <CardContent sx={{ height: 380 }}>
+              <CardContent sx={{ height: 800 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart
                     cx="50%"

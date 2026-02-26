@@ -248,8 +248,7 @@ const PredictorPage = () => {
         <Card elevation={3}>
           <Box component="form" onSubmit={handleSubmit}>
             <CardHeader
-              title="Student Data Input"
-              subheader="Form is pre-filled with a high-performing student."
+              title="Data Input"
             />
             <CardContent
               sx={{ display: "flex", flexDirection: "column", gap: 3 }}
@@ -276,6 +275,7 @@ const PredictorPage = () => {
                       <FormControl fullWidth>
                         <InputLabel>Protocol</InputLabel>
                         <Select
+                          label="Protocol"
                           name="protocol_type"
                           value={formData.protocol_type}
                           onChange={handleInputChange}

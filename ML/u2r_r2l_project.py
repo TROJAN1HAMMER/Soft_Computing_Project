@@ -1,6 +1,9 @@
 # ============================================================
 # NEURO-FUZZY HYBRID IDS WITH XGBOOST + ENSEMBLE BOOST
 # ============================================================
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 
 import pandas as pd
 import numpy as np
@@ -51,7 +54,9 @@ columns = [
 ]
 
 train_df = pd.read_csv("./data/KDDTrain+.txt", names=columns)
+train_df = train_df.sample(40000, random_state=42)
 test_df  = pd.read_csv("./data/KDDTest+.txt", names=columns)
+test_df = test_df.sample(10000, random_state=42)
 
 train_df.drop("difficulty", axis=1, inplace=True)
 test_df.drop("difficulty", axis=1, inplace=True)
@@ -129,11 +134,15 @@ print(classification_report(y_test, y_pred))
 # SMOTE RANDOM FOREST
 # ============================================================
 
-smote = SMOTE(random_state=42)
-X_train_smote, y_train_smote = smote.fit_resample(X_train, y_train)
+rf_smote = RandomForestClassifier(
+    n_estimators=120,
+    max_depth=12,
+    class_weight="balanced",
+    n_jobs=-1,
+    random_state=42
+)
 
-rf_smote = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-rf_smote.fit(X_train_smote, y_train_smote)
+rf_smote.fit(X_train, y_train)
 y_pred_smote = rf_smote.predict(X_test)
 
 print("\nSMOTE RF:")
@@ -144,10 +153,11 @@ print(classification_report(y_test, y_pred_smote))
 # ============================================================
 
 X_train_normal = X_train[y_train == "normal"]
-
 iso = IsolationForest(
-    n_estimators=100,
-    contamination=0.2,
+    n_estimators=400,
+    max_samples=1024,
+    contamination=0.25,
+    bootstrap=True,
     random_state=42,
     n_jobs=-1
 )
@@ -167,25 +177,35 @@ print(classification_report(
 # ANN STAGE-2 HYBRID
 # ============================================================
 
+from imblearn.over_sampling import SMOTE
+
 X_train_attack = X_train[y_train != "normal"]
 y_train_attack = y_train[y_train != "normal"]
 
-smote_attack = SMOTE(random_state=42)
-X_train_attack_smote, y_train_attack_smote = smote_attack.fit_resample(
-    X_train_attack, y_train_attack
+smote_stage2 = SMOTE(
+    sampling_strategy="not majority",
+    random_state=42,
+    k_neighbors=3
 )
 
+X_train_attack, y_train_attack = smote_stage2.fit_resample(
+    X_train_attack,
+    y_train_attack
+)
+
+
+
 label_encoder = LabelEncoder()
-y_train_attack_encoded = label_encoder.fit_transform(y_train_attack_smote)
+y_train_attack_encoded = label_encoder.fit_transform(y_train_attack)
 
 scaler = StandardScaler()
-X_train_attack_scaled = scaler.fit_transform(X_train_attack_smote)
+X_train_attack_scaled = scaler.fit_transform(X_train_attack)
 X_test_scaled = scaler.transform(X_test)
 
 mlp_stage2 = MLPClassifier(
-    hidden_layer_sizes=(128, 64),
-    activation='relu',
-    max_iter=200,
+    hidden_layer_sizes=(128,64),
+    max_iter=250,
+    batch_size=256,
     early_stopping=True,
     random_state=42
 )
@@ -195,11 +215,15 @@ mlp_stage2.fit(X_train_attack_scaled, y_train_attack_encoded)
 hybrid_predictions_ann = np.array(["normal"] * len(X_test))
 anomaly_indices = np.where(iso_preds_binary == 1)[0]
 
-attack_preds_encoded = mlp_stage2.predict(X_test_scaled[anomaly_indices])
-attack_preds_decoded = label_encoder.inverse_transform(attack_preds_encoded)
+attack_preds_encoded = mlp_stage2.predict(
+    X_test_scaled[anomaly_indices]
+)
+
+attack_preds_decoded = label_encoder.inverse_transform(
+    attack_preds_encoded
+)
 
 hybrid_predictions_ann[anomaly_indices] = attack_preds_decoded
-
 print("\nHybrid ANN Report:")
 print(classification_report(y_test, hybrid_predictions_ann))
 
@@ -211,11 +235,12 @@ from sklearn.model_selection import ParameterSampler
 
 param_dist = {
     "n_estimators": [200, 300],
-    "max_depth": [4, 6],
-    "learning_rate": [0.05, 0.1],
-    "subsample": [0.8, 0.9],
+    "max_depth": [5, 6],
+    "learning_rate": [0.05, 0.07],
+    "subsample": [0.8],
     "colsample_bytree": [0.8],
-    "gamma": [0, 0.1]
+    "gamma": [0],
+    "min_child_weight": [1, 2]
 }
 
 # Manual tuning with progress bar
@@ -232,19 +257,19 @@ print("\nStarting XGBoost tuning with progress bar...\n")
 for params in tqdm(param_list):
 
     model = XGBClassifier(
-        objective="multi:softprob",
-        num_class=4,
-        eval_metric="mlogloss",
-        tree_method="hist",
-        max_bin=256,
-        random_state=42,
-        n_jobs=-1,
-        **params
-    )
+    objective="multi:softprob",
+    num_class=4,
+    eval_metric="mlogloss",
+    tree_method="hist",
+    max_bin=256,
+    random_state=42,
+    n_jobs=-1,
+    **params,
+)
 
     scores = cross_val_score(
         model,
-        X_train_attack_smote,
+        X_train_attack_scaled,
         y_train_attack_encoded,
         cv=3 if FAST_TUNING else 5,
         scoring="f1_macro",
@@ -260,18 +285,92 @@ for params in tqdm(param_list):
 
 print("\nBest XGBoost Params:", best_params)
 print("Best CV F1:", best_score)
+xgb_stage2 = XGBClassifier(
+    objective="multi:softprob",
+    num_class=4,
+    eval_metric="mlogloss",
+    tree_method="hist",
+    max_bin=256,
+    random_state=42,
+    n_jobs=-1,
 
-xgb_stage2 = best_model
-xgb_stage2.fit(X_train_attack_smote, y_train_attack_encoded)
+    n_estimators=500,
+    max_depth=8,
+    learning_rate=0.03,
+    subsample=0.9,
+    colsample_bytree=0.9,
+    gamma=0,
+    min_child_weight=1
+)
 
-# Hybrid Prediction (XGB)
+from sklearn.utils.class_weight import compute_sample_weight
+
+sample_weights = compute_sample_weight(
+    class_weight={0:1, 1:1, 2:3, 3:5},
+    y=y_train_attack_encoded
+)
+
+from lightgbm import LGBMClassifier
+from sklearn.ensemble import VotingClassifier
+
+xgb_stage2 = XGBClassifier(
+    n_estimators=300,
+    max_depth=7,
+    learning_rate=0.05,
+    subsample=0.9,
+    colsample_bytree=0.9,
+    min_child_weight=1,
+    gamma=0.1,
+    objective="multi:softprob",
+    eval_metric="mlogloss",
+    tree_method="hist",
+    random_state=42
+)
+
+lgb_stage2 = LGBMClassifier(
+    n_estimators=300,
+    max_depth=7,
+    learning_rate=0.05,
+    subsample=0.9,
+    colsample_bytree=0.9,
+    class_weight={0:1, 1:2, 2:6, 3:10},
+    min_child_samples=20,
+    min_gain_to_split=0.01,
+    verbosity=-1,
+    random_state=42
+)
+
+ensemble_stage2 = VotingClassifier(
+    estimators=[("xgb", xgb_stage2), ("lgb", lgb_stage2)],
+    voting="soft"
+)
+
+ensemble_stage2.fit(X_train_attack_scaled, y_train_attack_encoded)
+# Hybrid Prediction (XGB + LGB Ensemble)
 hybrid_predictions_xgb = np.array(["normal"] * len(X_test))
-attack_preds_encoded = xgb_stage2.predict(X_test.iloc[anomaly_indices])
-attack_preds_decoded = label_encoder.inverse_transform(attack_preds_encoded)
+
+attack_preds_encoded = ensemble_stage2.predict(
+    X_test_scaled[anomaly_indices]
+)
+
+attack_preds_decoded = label_encoder.inverse_transform(
+    attack_preds_encoded
+)
+
 hybrid_predictions_xgb[anomaly_indices] = attack_preds_decoded
 
 print("\nHybrid XGBoost Report:")
 print(classification_report(y_test, hybrid_predictions_xgb))
+
+from sklearn.metrics import classification_report, accuracy_score
+
+print("\nHybrid XGB+LGB Report:")
+print(classification_report(y_test, hybrid_predictions_xgb))
+
+print("Hybrid XGB+LGB Accuracy:",
+      accuracy_score(y_test, hybrid_predictions_xgb))
+import sys
+sys.exit()
 
 # ============================================================
 # FULL MULTICLASS XGBOOST (FOR ENSEMBLE)
@@ -296,7 +395,7 @@ xgb_full_model = XGBClassifier(
 # ============================================================
 
 label_encoder_full = LabelEncoder()
-y_train_smote_encoded = label_encoder_full.fit_transform(y_train_smote)
+y_train_full_encoded = label_encoder_full.fit_transform(y_train)
 
 xgb_full_model = XGBClassifier(
     n_estimators=150,
@@ -310,7 +409,7 @@ xgb_full_model = XGBClassifier(
     n_jobs=-1
 )
 
-xgb_full_model.fit(X_train_smote, y_train_smote_encoded)
+xgb_full_model.fit(X_train, y_train_full_encoded)
 
 # ============================================================
 # ENSEMBLE BOOST STAGE
@@ -331,8 +430,8 @@ svm_full = SVC(
     random_state=42
 )
 
-rf_full.fit(X_train_smote, y_train_smote)
-svm_full.fit(X_train_smote, y_train_smote)
+rf_full.fit(X_train, y_train)
+svm_full.fit(X_train, y_train)
 
 voting_model = VotingClassifier(
     estimators=[
@@ -344,10 +443,9 @@ voting_model = VotingClassifier(
     n_jobs=-1
 )
 
-voting_model.fit(X_train_smote, y_train_smote)
+voting_model.fit(X_train, y_train)
 
-vote_pred_encoded = voting_model.predict(X_test)
-vote_pred = label_encoder_full.inverse_transform(vote_pred_encoded)
+vote_pred = voting_model.predict(X_test)
 
 print("\nVoting Ensemble Report:")
 print(classification_report(y_test, vote_pred))

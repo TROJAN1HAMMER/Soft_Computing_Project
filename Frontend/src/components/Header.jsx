@@ -18,6 +18,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
+import TerminalIcon from '@mui/icons-material/Terminal';
 
 // A custom styled Switch for a nicer look
 const MaterialUISwitch = styled(Switch)(({ theme }) => ({
@@ -95,6 +96,12 @@ const Header = ({ onNavigate, page, mode, toggleColorMode }) => {
                 value="statistics"
                 label="Statistics"
                 icon={<BarChartIcon />}
+                iconPosition="start"
+              />
+              <Tab
+                value="os-simulation"
+                label="OS Simulation"
+                icon={<TerminalIcon />}
                 iconPosition="start"
               />
             </Tabs>

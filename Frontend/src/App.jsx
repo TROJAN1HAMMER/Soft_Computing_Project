@@ -6,6 +6,7 @@ import getTheme from './theme.js'; // Import the new theme file
 import Header from './components/Header'; // Import the new Header component
 import PredictorPage from './pages/PredictorPage'; // Import the Predictor page
 import StatisticsPage from './pages/StatisticsPage.jsx'; // Import the Statistics page
+import OSSimulationPage from './pages/OSSimulationPage.jsx'; // New OS Simulation portal
 import { Box } from '@mui/material';
 
 export default function App() {
@@ -29,6 +30,8 @@ export default function App() {
         return <PredictorPage />;
       case 'statistics':
         return <StatisticsPage />;
+      case 'os-simulation':
+        return <OSSimulationPage />;
       default:
         return <StatisticsPage />;
     }

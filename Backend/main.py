@@ -21,8 +21,8 @@ app.add_middleware(
 with open("isolation_forest.pkl", "rb") as f:
     iso_model = pickle.load(f)
 
-with open("mlp_stage2.pkl", "rb") as f:
-    mlp_model = pickle.load(f)
+with open("xgb_prod.pkl", "rb") as f:
+    xgb_model = pickle.load(f)
 
 with open("label_encoder.pkl", "rb") as f:
     label_encoder = pickle.load(f)
@@ -86,7 +86,7 @@ def predict(data: NetworkInput):
     if iso_pred == -1:
         # Anomaly detected → classify attack
         features_scaled = scaler.transform(features)
-        attack_pred_encoded = mlp_model.predict(features_scaled)[0]
+        attack_pred_encoded = xgb_model.predict(features_scaled)[0]
         attack_pred = label_encoder.inverse_transform([attack_pred_encoded])[0]
     else:
         attack_pred = "normal"

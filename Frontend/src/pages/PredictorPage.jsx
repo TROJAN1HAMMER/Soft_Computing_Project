@@ -14,6 +14,7 @@ import {
   Container,
   Grid,
   Select,
+  Switch,
   MenuItem,
   TextField,
   Typography,
@@ -21,6 +22,8 @@ import {
   AccordionSummary,
   AccordionDetails,
   FormControl,
+  FormControlLabel,
+  Divider,
   InputLabel,
   CircularProgress,
   Alert,
@@ -120,16 +123,16 @@ const le_dict = {
 };
 
 const FINAL_FEATURE_ORDER = [
-  "duration",
-  "protocol_type",
-  "service",
+  "same_srv_rate",
+  "service_eco_i",
+  "service_ecr_i",
+  "service_http",
+  "diff_srv_rate",
   "src_bytes",
-  "dst_bytes",
-  "count",
-  "srv_count",
-  "serror_rate",
-  "srv_serror_rate",
-  "dst_host_count",
+  "dst_host_same_src_port_rate",
+  "hot",
+  "dst_host_diff_srv_rate",
+  "wrong_fragment"
 ];
 
 const TARGET_NAMES = ["normal", "dos", "probe", "r2l", "u2r"];
@@ -155,16 +158,16 @@ const runRealPrediction = async (data) => {
 // --- Main Component ---
 const PredictorPage = () => {
   const [formData, setFormData] = useState({
-    duration: 0,
-    protocol_type: "tcp",
-    service: "http",
-    src_bytes: 181,
-    dst_bytes: 5450,
-    count: 2,
-    srv_count: 2,
-    serror_rate: 0.0,
-    srv_serror_rate: 0.0,
-    dst_host_count: 150,
+    same_srv_rate: 0,
+    diff_srv_rate: 0,
+    src_bytes: 0,
+    dst_host_same_src_port_rate: 0,
+    hot: 0,
+    dst_host_diff_srv_rate: 0,
+    wrong_fragment: 0,
+    service_http: 0,
+    service_eco_i: 0,
+    service_ecr_i: 0,
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -172,12 +175,13 @@ const PredictorPage = () => {
   const [error, setError] = useState(null);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: isNaN(value) ? value : Number(value),
-    }));
-  };
+  const { name, value, type, checked } = e.target;
+  setFormData({
+    ...formData,
+    // If it's a checkbox/switch, use 'checked', otherwise use 'value'
+    [name]: type === 'checkbox' ? (checked ? 1 : 0) : value
+  });
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -248,8 +252,7 @@ const PredictorPage = () => {
         <Card elevation={3}>
           <Box component="form" onSubmit={handleSubmit}>
             <CardHeader
-              title="Student Data Input"
-              subheader="Form is pre-filled with a high-performing student."
+              title="Data Input"
             />
             <CardContent
               sx={{ display: "flex", flexDirection: "column", gap: 3 }}
@@ -260,110 +263,143 @@ const PredictorPage = () => {
                   <Typography variant="h6">Network Traffic Features</Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Duration"
-                        name="duration"
-                        type="number"
-                        value={formData.duration}
-                        onChange={handleInputChange}
-                      />
-                    </Grid>
+                 <Grid container spacing={3}>
+  {/* --- Group 1: Continuous and Rate Features --- */}
+  
+  <Grid item xs={12} sm={6}>
+    <TextField
+      fullWidth
+      label="Same Service Rate"
+      helperText="Value between 0.0 and 1.0"
+      name="same_srv_rate"
+      type="number"
+      inputProps={{ step: "0.01", min: "0", max: "1" }}
+      value={formData.same_srv_rate}
+      onChange={handleInputChange}
+    />
+  </Grid>
 
-                    <Grid item xs={12} sm={6}>
-                      <FormControl fullWidth>
-                        <InputLabel>Protocol</InputLabel>
-                        <Select
-                          name="protocol_type"
-                          value={formData.protocol_type}
-                          onChange={handleInputChange}
-                        >
-                          <MenuItem value="tcp">TCP</MenuItem>
-                          <MenuItem value="udp">UDP</MenuItem>
-                          <MenuItem value="icmp">ICMP</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
+  <Grid item xs={12} sm={6}>
+    <TextField
+      fullWidth
+      label="Diff Service Rate"
+      helperText="Value between 0.0 and 1.0"
+      name="diff_srv_rate"
+      type="number"
+      inputProps={{ step: "0.01", min: "0", max: "1" }}
+      value={formData.diff_srv_rate}
+      onChange={handleInputChange}
+    />
+  </Grid>
 
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Source Bytes"
-                        name="src_bytes"
-                        type="number"
-                        value={formData.src_bytes}
-                        onChange={handleInputChange}
-                      />
-                    </Grid>
+  <Grid item xs={12} sm={6}>
+    <TextField
+      fullWidth
+      label="Source Bytes"
+      name="src_bytes"
+      type="number"
+      value={formData.src_bytes}
+      onChange={handleInputChange}
+    />
+  </Grid>
 
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Destination Bytes"
-                        name="dst_bytes"
-                        type="number"
-                        value={formData.dst_bytes}
-                        onChange={handleInputChange}
-                      />
-                    </Grid>
+  <Grid item xs={12} sm={6}>
+    <TextField
+      fullWidth
+      label="Dst Host Same Src Port Rate"
+      name="dst_host_same_src_port_rate"
+      type="number"
+      inputProps={{ step: "0.01", min: "0", max: "1" }}
+      value={formData.dst_host_same_src_port_rate}
+      onChange={handleInputChange}
+    />
+  </Grid>
 
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Connection Count"
-                        name="count"
-                        type="number"
-                        value={formData.count}
-                        onChange={handleInputChange}
-                      />
-                    </Grid>
+  <Grid item xs={12} sm={6}>
+    <TextField
+      fullWidth
+      label="Hot Indicators"
+      name="hot"
+      type="number"
+      value={formData.hot}
+      onChange={handleInputChange}
+    />
+  </Grid>
 
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Service Count"
-                        name="srv_count"
-                        type="number"
-                        value={formData.srv_count}
-                        onChange={handleInputChange}
-                      />
-                    </Grid>
+  <Grid item xs={12} sm={6}>
+    <TextField
+      fullWidth
+      label="Dst Host Diff Service Rate"
+      name="dst_host_diff_srv_rate"
+      type="number"
+      inputProps={{ step: "0.01", min: "0", max: "1" }}
+      value={formData.dst_host_diff_srv_rate}
+      onChange={handleInputChange}
+    />
+  </Grid>
 
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Serror Rate"
-                        name="serror_rate"
-                        type="number"
-                        value={formData.serror_rate}
-                        onChange={handleInputChange}
-                      />
-                    </Grid>
+  <Grid item xs={12} sm={6}>
+    <TextField
+      fullWidth
+      label="Wrong Fragment Count"
+      name="wrong_fragment"
+      type="number"
+      value={formData.wrong_fragment}
+      onChange={handleInputChange}
+    />
+  </Grid>
 
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Srv Serror Rate"
-                        name="srv_serror_rate"
-                        type="number"
-                        value={formData.srv_serror_rate}
-                        onChange={handleInputChange}
-                      />
-                    </Grid>
+  {/* --- Group 2: Binary Service Indicators (The "Switch" Features) --- */}
 
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Destination Host Count"
-                        name="dst_host_count"
-                        type="number"
-                        value={formData.dst_host_count}
-                        onChange={handleInputChange}
-                      />
-                    </Grid>
-                  </Grid>
+  <Grid item xs={12}>
+    <Typography variant="subtitle1" gutterBottom>
+      Service Flags (Check all that apply)
+    </Typography>
+    <Divider sx={{ mb: 2 }} />
+  </Grid>
+
+  <Grid item xs={12} sm={4}>
+    <FormControlLabel
+      control={
+        <Switch
+          checked={formData.service_http === 1}
+          onChange={(e) => handleInputChange({ 
+            target: { name: 'service_http', value: e.target.checked ? 1 : 0 } 
+          })}
+        />
+      }
+      label="Is HTTP Service?"
+    />
+  </Grid>
+
+  <Grid item xs={12} sm={4}>
+    <FormControlLabel
+      control={
+        <Switch
+          checked={formData.service_eco_i === 1}
+          onChange={(e) => handleInputChange({ 
+            target: { name: 'service_eco_i', value: e.target.checked ? 1 : 0 } 
+          })}
+        />
+      }
+      label="Is ECO_I (Ping)?"
+    />
+  </Grid>
+
+  <Grid item xs={12} sm={4}>
+    <FormControlLabel
+      control={
+        <Switch
+          checked={formData.service_ecr_i === 1}
+          onChange={(e) => handleInputChange({ 
+            target: { name: 'service_ecr_i', value: e.target.checked ? 1 : 0 } 
+          })}
+        />
+      }
+      label="Is ECR_I (Echo Reply)?"
+    />
+  </Grid>
+</Grid>
                 </AccordionDetails>
               </Accordion>
 

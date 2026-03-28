@@ -131,7 +131,7 @@ export default function LiveSOCPage() {
       <Grid container spacing={2} sx={{ flexGrow: 1, minHeight: '85vh', height: '100%',width: '100%', m: 0 }}>
         
         {/* COLUMN 1: LIVE STREAMING LOGS (Width 25%) */}
-        <Grid item xs={12} lg={2.5} sx={{ height: '100%' }}>
+        <Grid item xs={12} lg={2.5} sx={{ flex: 1.1 , height: '100%' }}>
           <Paper sx={{ ...panelStyle, height: '100%', p: 2 }}>
             <Box>
               <Typography sx={titleStyle}>
@@ -175,7 +175,7 @@ export default function LiveSOCPage() {
         </Grid>
 
         {/* COLUMN 2: ANALYTICS DASHBOARD (Width 25%) */}
-        <Grid item xs={12} lg={2.5} sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Grid item xs={12} lg={2.5} sx={{ flex: 1.2 ,height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
           
           {/* AI THREAT DETECTION ENGINE */}
           <Paper sx={{ ...panelStyle, p: 2, flex: '0 0 auto' }}>
@@ -278,7 +278,7 @@ export default function LiveSOCPage() {
         </Grid>
 
         {/* COLUMN 3: MASSIVE SVG NETWORK GRAPH (Width 50%) */}
-        <Grid item xs={12} lg={7} sx={{ height: '100%', pr: 0 }}>
+        <Grid item xs={12} lg={7}  sx={{ height:'100%', pr: 0 }}>
           <NetworkGraph />
         </Grid>
 

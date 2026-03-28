@@ -336,7 +336,7 @@ export default function StatisticsPage() {
         <Grid container spacing={3} sx={{ mb: 4, alignItems: "stretch" }}>
           
           {/* 1. Model Summary (Moved to Row 0) */}
-          <Grid item xs={12} lg={3}>
+          <Grid item xs={12} lg={3} sx={{ flex: 1.1 }}>
             <Card sx={{ height: 420, border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' }}>
               <CardHeader title={<Typography variant="h6" fontWeight="bold">Model Summary</Typography>} sx={{ pb: 0 }} />
               <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', pt: 1 }}>
@@ -358,7 +358,7 @@ export default function StatisticsPage() {
           </Grid>
 
           {/* 2. Architectural Evolution Chart */}
-          <Grid item xs={12} lg={6}>
+          <Grid item xs={12} lg={6} sx={{ flex: 1.2 }}>
             <Card sx={{ height: 420, background: 'linear-gradient(145deg, rgba(15,23,42,0.95), rgba(30,41,59,0.95))', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
               <CardHeader 
                 avatar={<TrendingUpIcon sx={{ color: '#4ECDC4' }} />} 
@@ -413,7 +413,7 @@ export default function StatisticsPage() {
         <Grid container spacing={3} sx={{ mb: 4, alignItems: "stretch" }}>
           
           {/* Target Distribution - Before vs After SMOTE */}
-          <Grid item xs={12} lg={6}>
+          <Grid item xs={12} lg={6} sx={{ flex: 1.1 }}>
             <Card sx={{ height: 420 }}>
               <CardHeader
                 avatar={<SupervisedUserCircleIcon color="primary" />}
@@ -443,7 +443,7 @@ export default function StatisticsPage() {
           </Grid>
 
           {/* Top 10 Feature Importance */}
-          <Grid item xs={12} lg={6}>
+          <Grid item xs={12} lg={6} sx={{ flex: 1.2 }}>
             <Card sx={{ height: 420 }}>
               <CardHeader
                 avatar={<TrendingUpIcon color="primary" />}

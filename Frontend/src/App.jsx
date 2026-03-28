@@ -7,6 +7,8 @@ import Header from './components/Header'; // Import the new Header component
 import PredictorPage from './pages/PredictorPage'; // Import the Predictor page
 import StatisticsPage from './pages/StatisticsPage.jsx'; // Import the Statistics page
 import OSSimulationPage from './pages/OSSimulationPage.jsx'; // New OS Simulation portal
+import ArchitecturePage from './pages/ArchitecturePage.jsx'; // New Architecture deep-dive layer
+import LiveSOCPage from './pages/LiveSOCPage.jsx'; // New Phase 8 SOC Dashboard
 import { Box } from '@mui/material';
 
 export default function App() {
@@ -30,6 +32,10 @@ export default function App() {
         return <PredictorPage />;
       case 'statistics':
         return <StatisticsPage />;
+      case 'architecture':
+        return <ArchitecturePage />;
+      case 'soc-dashboard':
+        return <LiveSOCPage />;
       case 'os-simulation':
         return <OSSimulationPage />;
       default:

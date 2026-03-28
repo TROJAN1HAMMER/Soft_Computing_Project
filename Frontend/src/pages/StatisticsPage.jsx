@@ -14,6 +14,7 @@ import {
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
+  Cell,
 } from "recharts";
 import { motion } from "framer-motion";
 import {
@@ -27,6 +28,7 @@ import {
   Typography,
   useTheme,
   Tooltip as MUITooltip,
+  Divider,
 } from "@mui/material";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import PsychologyIcon from "@mui/icons-material/Psychology";
@@ -80,6 +82,13 @@ const MODEL_SUMMARY = {
   topFeature: "src_bytes",
 };
 
+const GENERATIONAL_PERFORMANCE = [
+  { version: "V1 (Classic)", accuracy: 78.4, parameters: "Isolation Forest + Fuzzy", color: "#8884d8" },
+  { version: "V2 (Deep LSTM)", accuracy: 73.6, parameters: "Autoencoder + LSTM", color: "#f59e0b" },
+  { version: "V3 (Transformer)", accuracy: 91.13, parameters: "PyTorch Attention (Stratified)", color: "#10b981" },
+  { version: "V4 (Ultimate)", accuracy: 96.22, parameters: "Categorical NLP Embeddings", color: "#3b82f6" },
+];
+
 const TARGET_DISTRIBUTION = [
   {
     name: "Before SMOTE",
@@ -98,6 +107,7 @@ const TARGET_DISTRIBUTION = [
     U2R: 67343,
   },
 ];
+
 
 // ROC AUC approximations from results (OvR per class)
 const ROC_AUC_DATA = [
@@ -322,60 +332,95 @@ export default function StatisticsPage() {
           </Typography>
         </Box>
 
-        {/* ROW 1: Model Summary, Target Distribution, Top 10 Feature Importance */}
-        <Grid container spacing={2} sx={{ mb: 2, alignItems: "stretch" }}>
-          {/* Model Summary */}
-          <Grid item xs={12} md={4} sx={{ flex: 1.1 }}>
-            <Card sx={{ height: 350 }}>
-              <CardHeader title="Model Summary" />
-              <CardContent>
-                <Typography>
-                  <strong>Model:</strong> {MODEL_SUMMARY.modelName}
-                </Typography>
-                <Typography>
-                  <strong>Baseline Accuracy:</strong>{" "}
-                  {(MODEL_SUMMARY.baselineAccuracy * 100).toFixed(2)}%
-                </Typography>
-                <Typography>
-                  <strong>SMOTE Accuracy:</strong>{" "}
-                  {(MODEL_SUMMARY.smoteAccuracy * 100).toFixed(2)}%
-                </Typography>
-                <Typography>
-                  <strong>Hybrid Accuracy:</strong>{" "}
-                  {(MODEL_SUMMARY.hybridAccuracy * 100).toFixed(2)}%
-                </Typography>
-                <Typography>
-                  <strong>Binary (Anomaly) Accuracy:</strong>{" "}
-                  {(MODEL_SUMMARY.binaryAccuracy * 100).toFixed(2)}%
-                </Typography>
-                <Typography>
-                  <strong>Macro F1-Score:</strong>{" "}
-                  {(MODEL_SUMMARY.macroF1 * 100).toFixed(2)}%
-                </Typography>
-                <Typography>
-                  <strong>Weighted F1-Score:</strong>{" "}
-                  {(MODEL_SUMMARY.weightedF1 * 100).toFixed(2)}%
-                </Typography>
-                <Typography sx={{ mt: 1 }} color="text.secondary">
-                  Top feature:{" "}
-                  <strong>
-                    {PRETTY_LABELS[MODEL_SUMMARY.topFeature] ||
-                      MODEL_SUMMARY.topFeature}
-                  </strong>
-                </Typography>
+        {/* ROW 0: Model Summary + Evolutionary Metrics + Milestones */}
+        <Grid container spacing={3} sx={{ mb: 4, alignItems: "stretch" }}>
+          
+          {/* 1. Model Summary (Moved to Row 0) */}
+          <Grid item xs={12} lg={3}>
+            <Card sx={{ height: 420, border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' }}>
+              <CardHeader title={<Typography variant="h6" fontWeight="bold">Model Summary</Typography>} sx={{ pb: 0 }} />
+              <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', pt: 1 }}>
+                <Typography variant="body2" sx={{ mb: 0.5 }}><strong>Model:</strong> {MODEL_SUMMARY.modelName}</Typography>
+                <Typography variant="body2" sx={{ mb: 0.5 }}><strong>Baseline Acc:</strong> {(MODEL_SUMMARY.baselineAccuracy * 100).toFixed(2)}%</Typography>
+                <Typography variant="body2" sx={{ mb: 0.5 }}><strong>SMOTE Acc:</strong> {(MODEL_SUMMARY.smoteAccuracy * 100).toFixed(2)}%</Typography>
+                <Typography variant="body2" sx={{ mb: 0.5 }}><strong>Hybrid Acc:</strong> {(MODEL_SUMMARY.hybridAccuracy * 100).toFixed(2)}%</Typography>
+                <Typography variant="body2" sx={{ mb: 0.5 }}><strong>Binary Anomaly:</strong> {(MODEL_SUMMARY.binaryAccuracy * 100).toFixed(2)}%</Typography>
+                <Typography variant="body2" sx={{ mb: 0.5 }}><strong>Macro F1:</strong> {(MODEL_SUMMARY.macroF1 * 100).toFixed(2)}%</Typography>
+                <Typography variant="body2" sx={{ mb: 0.5 }}><strong>Weighted F1:</strong> {(MODEL_SUMMARY.weightedF1 * 100).toFixed(2)}%</Typography>
+                <Box sx={{ mt: 'auto', p: 1, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2 }}>
+                  <Typography variant="caption" color="text.secondary">Top Feature Trigger</Typography>
+                  <Typography variant="subtitle2" color="primary" fontWeight="bold">
+                    {PRETTY_LABELS[MODEL_SUMMARY.topFeature] || MODEL_SUMMARY.topFeature}
+                  </Typography>
+                </Box>
               </CardContent>
             </Card>
           </Grid>
 
+          {/* 2. Architectural Evolution Chart */}
+          <Grid item xs={12} lg={6}>
+            <Card sx={{ height: 420, background: 'linear-gradient(145deg, rgba(15,23,42,0.95), rgba(30,41,59,0.95))', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+              <CardHeader 
+                avatar={<TrendingUpIcon sx={{ color: '#4ECDC4' }} />} 
+                title={<Typography variant="h6" fontWeight="bold">Architectural Evolution</Typography>} 
+                subheader={<Typography variant="body2" color="rgba(255,255,255,0.6)">Generational tracking from V1 (Fuzzy) to V4 (Transformers)</Typography>} 
+              />
+              <CardContent sx={{ height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={GENERATIONAL_PERFORMANCE} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                    <XAxis dataKey="version" tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 'bold' }} axisLine={{ stroke: 'rgba(255,255,255,0.2)' }} />
+                    <YAxis domain={[60, 100]} tick={{ fill: 'rgba(255,255,255,0.5)' }} axisLine={{ stroke: 'rgba(255,255,255,0.2)' }} />
+                    <Tooltip 
+                      cursor={{ fill: 'rgba(255,255,255,0.05)' }} 
+                      contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
+                      itemStyle={{ color: '#fff', fontWeight: 'bold' }}
+                      formatter={(val, name, props) => [`${val}%`, props.payload.parameters]}
+                    />
+                    <Bar dataKey="accuracy" radius={[8, 8, 0, 0]} maxBarSize={80}>
+                      {GENERATIONAL_PERFORMANCE.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} lg={3}>
+            <Card sx={{ height: 420, border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
+              <CardHeader title="Generational Milestones" />
+              <CardContent sx={{ pt: 1 }}>
+                {GENERATIONAL_PERFORMANCE.map((model, i) => (
+                  <Box key={i} sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="subtitle2" fontWeight="bold" color={model.color} sx={{ textTransform: 'uppercase' }}>{model.version}</Typography>
+                      <Typography variant="subtitle2" fontWeight="900" sx={{ color: model.color }}>{model.accuracy}%</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">{model.parameters}</Typography>
+                    <Box sx={{ width: '100%', height: 8, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 4, mt: 1, overflow: 'hidden' }}>
+                      <Box sx={{ width: `${model.accuracy}%`, height: '100%', bgcolor: model.color, borderRadius: 4, transition: 'width 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
+                    </Box>
+                  </Box>
+                ))}
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* ROW 1: Target Distribution & Top 10 Feature Importance */}
+        <Grid container spacing={3} sx={{ mb: 4, alignItems: "stretch" }}>
+          
           {/* Target Distribution - Before vs After SMOTE */}
-          <Grid item xs={12} md={4} sx={{ flex: 1.2 }}>
-            <Card sx={{ height: 350}}>
+          <Grid item xs={12} lg={6}>
+            <Card sx={{ height: 420 }}>
               <CardHeader
                 avatar={<SupervisedUserCircleIcon color="primary" />}
                 title="Target Distribution — Before vs After SMOTE"
                 subheader="Why SMOTE was necessary (class imbalance fixed)"
               />
-              <CardContent sx={{ height: 260 }}>
+              <CardContent sx={{ height: 320 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={TARGET_DISTRIBUTION}
@@ -398,14 +443,14 @@ export default function StatisticsPage() {
           </Grid>
 
           {/* Top 10 Feature Importance */}
-          <Grid item xs={12} md={6} sx={{ flex: 1.3 }}>
-            <Card sx={{ height: 350 }}>
+          <Grid item xs={12} lg={6}>
+            <Card sx={{ height: 420 }}>
               <CardHeader
                 avatar={<TrendingUpIcon color="primary" />}
                 title="Top 10 Feature Importances"
                 subheader="Feature importances (top 10)"
               />
-              <CardContent sx={{ height: 260 }}>
+              <CardContent sx={{ height: 320 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     layout="vertical"

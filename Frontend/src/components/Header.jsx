@@ -16,9 +16,11 @@ import { styled } from '@mui/material/styles';
 // Icons
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import TerminalIcon from '@mui/icons-material/Terminal';
+import GraphicEqIcon from '@mui/icons-material/GraphicEq';
 
 // A custom styled Switch for a nicer look
 const MaterialUISwitch = styled(Switch)(({ theme }) => ({
@@ -96,6 +98,18 @@ const Header = ({ onNavigate, page, mode, toggleColorMode }) => {
                 value="statistics"
                 label="Statistics"
                 icon={<BarChartIcon />}
+                iconPosition="start"
+              />
+              <Tab
+                value="architecture"
+                label="Architecture"
+                icon={<AccountTreeIcon />}
+                iconPosition="start"
+              />
+              <Tab
+                value="soc-dashboard"
+                label="Live SOC"
+                icon={<GraphicEqIcon />}
                 iconPosition="start"
               />
               <Tab

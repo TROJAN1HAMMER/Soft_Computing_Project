@@ -50,8 +50,8 @@ columns = [
     'dst_host_srv_rerror_rate','label','difficulty'
 ]
 
-train_df = pd.read_csv("./data/KDDTrain+.txt", names=columns)
-test_df  = pd.read_csv("./data/KDDTest+.txt", names=columns)
+train_df = pd.read_csv("../data/KDDTrain+.txt", names=columns)
+test_df = pd.read_csv("../data/KDDTest+.txt", names=columns)
 
 train_df.drop("difficulty", axis=1, inplace=True)
 test_df.drop("difficulty", axis=1, inplace=True)

@@ -125,21 +125,16 @@ def manual_predict(req: ManualPredictRequestV3):
         tf_out = tf_model(t_x.unsqueeze(1))
         tf_probs = torch.softmax(tf_out, dim=1).numpy()[0]
     
-    if mse <= ae_threshold:
-        pred_label = "normal"
-        confidence = 99.9
-        prob_dict = {"normal": 0.99, "dos":0.01, "probe":0.0, "r2l":0.0, "u2r":0.0}
-        pred_idx = label_encoder.transform(["normal"])[0]
+    max_tf_prob = np.max(tf_probs)
+    if max_tf_prob < 0.90:
+        probs = xgb_model.predict_proba(scaled_x)[0]
     else:
-        max_tf_prob = np.max(tf_probs)
-        if max_tf_prob < 0.90:
-            probs = xgb_model.predict_proba(scaled_x)[0]
-        else:
-            probs = tf_probs
-        pred_idx = np.argmax(probs)
-        pred_label = label_encoder.inverse_transform([pred_idx])[0]
-        prob_dict = {label_encoder.classes_[i]: float(probs[i]) for i in range(len(probs))}
-        confidence = round(float(np.max(probs)) * 100, 2)
+        probs = tf_probs
+        
+    pred_idx = np.argmax(probs)
+    pred_label = label_encoder.inverse_transform([pred_idx])[0]
+    prob_dict = {label_encoder.classes_[i]: float(probs[i]) for i in range(len(probs))}
+    confidence = round(float(np.max(probs)) * 100, 2)
         
     shap_vals = explainer.shap_values(scaled_x)[0]
     if isinstance(shap_vals, list):

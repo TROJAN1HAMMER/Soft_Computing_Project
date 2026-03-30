@@ -86,7 +86,7 @@ const SAMPLE_PAYLOADS = {
     dst_host_same_src_port_rate: 0.0,
     hot: 3.0,
     dst_host_diff_srv_rate: 0.0,
-    wrong_fragment: 1.0
+    wrong_fragment: 0.0
   }
 };
 

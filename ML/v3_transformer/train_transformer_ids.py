@@ -191,15 +191,14 @@ final_preds = []
 
 anomalies = 0
 for i in range(len(X_test_tensor)):
-    if test_mse[i] <= threshold:
-        final_preds.append(le.transform(['normal'])[0])
+    tf_prob = tf_probs[i]
+    if np.max(tf_prob) < 0.90:
+        final_preds.append(np.argmax(xgb_probs[i]))
     else:
+        final_preds.append(np.argmax(tf_prob))
+        
+    if test_mse[i] > threshold:
         anomalies += 1
-        tf_prob = tf_probs[i]
-        if np.max(tf_prob) < 0.90:
-            final_preds.append(np.argmax(xgb_probs[i]))
-        else:
-            final_preds.append(np.argmax(tf_prob))
 
 print(f"Autoencoder detected {anomalies} anomalies out of {len(X_test_tensor)}")
 

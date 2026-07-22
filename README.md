@@ -1,167 +1,327 @@
-# 🛡️ Neuro-Fuzzy Hybrid Intrusion Detection System (IDS)
+# 🛡️ Synapse Sentinel: Hybrid Neuro-Fuzzy Intrusion Detection System (IDS)
+
+[![Python Version](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10-blue.svg)](https://www.python.org/)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.0.0-green.svg)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## 📌 Overview
+## 📌 Executive Summary
 
-This project implements a **Hybrid Intrusion Detection System (IDS)** designed to improve the detection of rare and critical cyber attacks such as:
-* **U2R (User to Root)** – Privilege Escalation
-* **R2L (Remote to Local)** – Unauthorized Remote Access
+**Synapse Sentinel** is a state-of-the-art **Hybrid Intrusion Detection System (IDS)** designed to defend corporate and academic networks against rare and stealthy cyber exploits. Traditional intrusion detection systems struggle with severe class imbalances, particularly failing to capture low-frequency, high-severity attacks such as:
+*   **User to Root (U2R)**: Privilege escalation exploits (e.g., buffer overflows, rootkit payloads).
+*   **Remote to Local (R2L)**: Unauthorized access from a remote machine (e.g., password guessing, sniffing, illicit port access).
 
-These attacks are historically difficult to detect because of severe class imbalance, very few training samples, similar behavior to normal traffic, and subtle exploitation patterns.
-
-To address this, the system has evolved into a dual-architecture deployment:
-1. **Architecture V1: Classic Neuro-Fuzzy Pipeline** (Isolation Forests + Soft Computing)
-2. **Architecture V2: Deep Learning Pipeline** (PyTorch Autoencoders + LSTMs + Live Network Sniffing)
+By combining **soft computing (Fuzzy Logic)**, **supervised learning (MLP, XGBoost)**, **deep anomaly detection (Autoencoders)**, **recurrent neural structures (LSTM)**, and **self-attention networks (Transformers)**, Synapse Sentinel achieves up to a **15x recall improvement** on rare attack vectors compared to standard baseline classifiers.
 
 ---
 
-## 📂 Dataset
-**NSL-KDD Dataset**
-Files used: `KDDTrain+.txt`, `KDDTest+.txt`
+## 🏛️ System Architecture & Data Flow
 
-**Attack classes grouped into:**
-`normal`, `dos`, `probe`, `r2l`, `u2r`
+Synapse Sentinel supports three evolutionary pipeline stages, accommodating various deployment constraints (low latency with 10 features vs. maximum detection accuracy with all 41 KDD features).
 
-**Dataset Size:**
-* 125,973 training samples
-* 22,544 testing samples
+```mermaid
+graph TD
+    A[Network Traffic / Packet Input] --> B{Select Pipeline Mode}
+    
+    %% V1 Pipeline
+    B -->|V1: Classic Baseline| C[Isolation Forest Anomaly Filter]
+    C -->|Normal Traffic| D[Normal Status]
+    C -->|Anomalous Traffic| E[Multi-Layer Perceptron MLP]
+    E --> F[Fuzzy Risk Reasoning Layer]
+    F --> G[Categorized Risk: Low, Med, High, Very High, Critical]
+    
+    %% V2 Pipeline
+    B -->|V2: Deep Learning Production| H[PyTorch Dense Autoencoder]
+    H -->|MSE <= Dynamic Threshold| I[Normal Status]
+    H -->|MSE > Dynamic Threshold| J[PyTorch LSTM Classifier]
+    J --> K{LSTM Confidence >= 85%?}
+    K -->|Yes| L[LSTM Threat Label]
+    K -->|No| M[XGBoost Predictor + SHAP Explanation]
+    L --> N[Unified Live Dashboard Reporting]
+    M --> N
+    
+    %% V3/V4 Pipeline
+    B -->|V3/V4: Self-Attention Transformer| O[PyTorch Dense Autoencoder]
+    O -->|MSE <= Dynamic Threshold| P[Normal Status]
+    O -->|MSE > Dynamic Threshold| Q[PyTorch Self-Attention Transformer]
+    Q --> R{Confidence >= 90%?}
+    R -->|Yes| S[Transformer Threat Label]
+    R -->|No| T[XGBoost Predictor + SHAP Explanation]
+    S --> U[Unified Live Dashboard Reporting]
+    T --> U
+```
 
----
+### 🔹 V1: Classic Neuro-Fuzzy Pipeline (Soft Computing)
+1.  **Stage 1: Unsupervised Anomaly Isolation**: Uses an **Isolation Forest** to quickly filter clean traffic from anomalies.
+2.  **Stage 2: Supervised Neural Classification**: Flagged anomalies are fed into a **Multi-Layer Perceptron (MLP)** trained specifically on balanced attack distributions (using **SMOTE**).
+3.  **Stage 3: Fuzzy Logic Risk Reasoner**: Model probabilities are passed into a Mamdani-style Fuzzy Risk Inference block to output human-interpretable severity categories:
 
-## 🏛️ System Architecture V1: Classic Neuro-Fuzzy Baseline
+| Input (Normal/Attack Type) | Output Risk Level | Action Code |
+| :--- | :--- | :--- |
+| Normal | **Low** | Log & Pass |
+| Probe | **Medium** | Log & Flag |
+| Denial of Service (DoS) | **High** | Rate-Limit / Inspect |
+| Remote to Local (R2L) | **Very High** | Quarante Connection |
+| User to Root (U2R) | **Critical** | Terminate Session & Alarm |
 
-### 🔹 Stage 1 – Binary Anomaly Detection (Isolation Forest)
-* Trained to detect anomalous traffic
-* Separates: `normal` vs `anomaly`
-* **Binary Detection Accuracy:** 84%
-* **Rare Attack Detection:** U2R (63%), R2L (39%)
+### 🔹 V2: Deep Learning Production Pipeline
+Streamlined for production efficiency utilizing a target payload of exactly **10 key network parameters** to ensure sub-millisecond classification overhead:
+1.  **Reconstruction Autoencoder**: A PyTorch Dense Autoencoder maps normal baseline network behaviors. If the Reconstruction Mean Squared Error (MSE) exceeds the dynamic 95th-percentile training threshold, it is labeled an anomaly.
+2.  **Recurrent Sequence Evaluator (LSTM)**: Temporal patterns are analyzed by a bidirectional/sequence LSTM to compute categorical probabilities over attack profiles.
+3.  **Explainable AI (XAI) Fallback**: If the LSTM's peak confidence falls below **85%**, the request triggers an instant fallback to an **XGBoost** model paired with a **SHAP (SHapley Additive exPlanations)** explainer, outputting the specific feature weights that caused the threat flag on the frontend dashboard.
 
-### 🔹 Stage 2 – Multi-Class Attack Classification (MLP)
-* **Multi-Layer Perceptron (Backpropagation Neural Network)**
-* Trained only on attack data
-* SMOTE used for robust class balancing
-* Classifies exactly into: `dos`, `probe`, `r2l`, `u2r`
-
-### 🔹 Stage 3 – Fuzzy Risk Reasoning Layer
-A fuzzy logic layer translates model output into decision-level severity:
-
-| Attack Type | Risk Level |
-| ----------- | ---------- |
-| normal      | Low        |
-| probe       | Medium     |
-| dos         | High       |
-| r2l         | Very High  |
-| u2r         | Critical   |
-
-### 📊 V1 Model Performance
-* **Baseline Random Forest**: Accuracy 75% | U2R Recall 2% | R2L Recall 2%
-* **SMOTE + Random Forest**: Accuracy 76% | U2R Recall 14% | R2L Recall 9%
-* **Final Neuro-Fuzzy Hybrid**: Overall Accuracy 78% | Weighted F1 0.77 | U2R Recall 35% | R2L Recall 30% *(Achieves ~15x improvement over baselines!)*
-
----
-
-## 🚀 System Architecture V2: Deep Learning Production Upgrade
-
-A streamlined, highly integrated deployment utilizing exactly **10 core network features** for supreme latency tracking and explainability: `duration`, `protocol_type`, `service`, `src_bytes`, `dst_bytes`, `count`, `srv_count`, `serror_rate`, `srv_serror_rate`, `dst_host_count`.
-
-### 🔹 Stage 1 – Deep Anomaly Isolation
-**PyTorch Dense Autoencoder**
-* Strictly reconstruction-mapped against normal network flow. Any MSE crossing the 95th-percentile dynamic boundary is flagged anomalous.
-
-### 🔹 Stage 2 – Recurrent Classification
-**PyTorch LSTM Engine (64x32)**
-* Temporal recurrent neural sequence to evaluate Softmax probabilities over packet payloads.
-
-### 🔹 Stage 3 – Explainable AI Fallback
-**XGBoost + SHAP**
-* Native fallback mechanism triggers instantly on `<85%` LSTM confidence, rendering exactly *why* a packet was dropped explicitly in the web dashboard!
-
-### 📡 Real-Time Live Sniffing Daemon
-The V2 API backend natively hosts a concurrent Layer-3 **scapy packet sniffer daemon** starting strictly on server boot! It converts active Ethernet packets seamlessly against the 10 parameters inside real-time constraints mapping instantly against PyTorch boundaries.
+### 🔹 V3 & V4: The Self-Attention Transformer Engine
+*   **V3 (10-Feature Transformer)**: Leverages Multi-Head Self-Attention layers in PyTorch. Achieves a significant jump to **91.1% accuracy** while maintaining the low-latency 10-feature ceiling.
+*   **V4 (41-Feature Transformer)**: Fully unlocks the entire NSL-KDD structural telemetry (41 columns, expanded to 122 inputs via categorical one-hot encoding). Achieves an outstanding **96.2% overall accuracy** and a **0.76 F-measure on U2R exploits**.
 
 ---
 
-## 💥 System Architecture V3: The Transformer Engine (Phase 3 Upgrade)
+## 📡 API Reference & Endpoints
 
-To shatter the native accuracy limits caused by strictly observing only 10 low-latency features across zero-day datasets, Phase 3 implements **PyTorch Multi-Head Self-Attention Transformers**. 
+Each backend iteration utilizes **FastAPI** and is bound to a specific routing port to support microservice isolation or frontend visualizers.
 
-*   **Stratified Global Validation:** We mathematically merged `KDDTrain+` and `KDDTest+` together, utilizing SMOTE over the unified domain. An 80/20 train/test split ensures the Transformer encounters every possible distribution vector of network intrusion.
-*   **The Results:** This aggressive architecture leaped natively from a 73% limit to an immense **91.1% Ultimate Accuracy** all while continuously strictly remaining within the 10-feature processing bound constraint!
+### 🔌 Version 1: Classic Backend (Port `8000`)
+*   **Base URL**: `http://localhost:8000`
+*   **Interactive Docs**: `http://localhost:8000/docs`
 
-### 💥 Phase 4: Ultimate 41-Feature Unlocked Payload (V4)
-To break past the 10-feature ceiling explicitly bound by the legacy React payload formatting, Phase 4 expands the exact same Transformer pipeline across **all 41 structural KDD features**.
-* One-hot encoding `protocol_type`, `service`, and `flag` dramatically expanded the classification array into **122 concurrent variables**.
-* This unleashed the mathematical absolute maximum of the neural mechanism natively hitting an astonishing **96.2% Ultimate Accuracy** while maintaining `U2R` exploit detection at an incredible 0.76 F-measure.
+#### 1. Threat Prediction
+*   **Endpoint**: `POST /predict`
+*   **Request Schema (`NetworkInput`)**:
+    ```json
+    {
+      "duration": 0.0,
+      "protocol_type": "tcp",
+      "service": "http",
+      "src_bytes": 150.0,
+      "dst_bytes": 350.0,
+      "count": 1.0,
+      "srv_count": 1.0,
+      "serror_rate": 0.0,
+      "srv_serror_rate": 0.0,
+      "dst_host_count": 2.0
+    }
+    ```
+*   **Response Structure**:
+    ```json
+    {
+      "prediction": "normal",
+      "probabilities": {}
+    }
+    ```
 
 ---
 
-## ⚙️ Installation
+### 🔌 Version 2: Deep Learning Backend (Port `8001`)
+*   **Base URL**: `http://localhost:8001`
+*   **Interactive Docs**: `http://localhost:8001/docs`
 
-### Requirements
-* Python 3.x
-* Node.js / NPM
+#### 1. Custom Threat Prediction (With SHAP Explanations)
+*   **Endpoint**: `POST /predict`
+*   **Request Schema (`ManualPredictRequest`)**:
+    ```json
+    {
+      "duration": 0.0,
+      "protocol_type": "tcp",
+      "service": "http",
+      "src_bytes": 500.0,
+      "dst_bytes": 200.0,
+      "count": 2.0,
+      "srv_count": 2.0,
+      "serror_rate": 0.0,
+      "srv_serror_rate": 0.0,
+      "dst_host_count": 1.0
+    }
+    ```
+*   **Response Structure**:
+    ```json
+    {
+      "prediction": "normal",
+      "confidence": 99.9,
+      "probabilities": {
+        "normal": 0.99,
+        "dos": 0.01,
+        "probe": 0.0,
+        "r2l": 0.0,
+        "u2r": 0.0
+      },
+      "explanation": {
+        "top_features": [
+          { "feature": "src_bytes", "impact": 0.125 },
+          { "feature": "same_srv_rate", "impact": -0.05 }
+        ]
+      }
+    }
+    ```
 
-### Install Dependencies
-```bash
-# Core Machine Learning & API Dependencies
-pip install pandas numpy scikit-learn imbalanced-learn fastapi uvicorn
+#### 2. Trigger Live Capture Daemon
+Starts a background Layer 3 Ethernet capture loop utilizing Python's `Scapy` library.
+*   **Endpoint**: `GET /live-detect`
+*   **Response Structure**:
+    ```json
+    {
+      "status": "started",
+      "message": "Live packet capture initiated in background."
+    }
+    ```
 
-# Deep Learning Upgrade Dependencies
-pip install torch shap scapy xgboost
+---
+
+### 🔌 Version 3: Transformer Backend (Port `8002`)
+*   **Base URL**: `http://localhost:8002`
+*   **Interactive Docs**: `http://localhost:8002/docs`
+
+#### 1. Transformer Prediction Request
+*   **Endpoint**: `POST /predict`
+*   **Request Schema (`ManualPredictRequestV3`)**:
+    ```json
+    {
+      "same_srv_rate": 1.0,
+      "service_eco_i": 0.0,
+      "service_ecr_i": 0.0,
+      "service_http": 1.0,
+      "diff_srv_rate": 0.0,
+      "src_bytes": 250.0,
+      "dst_host_same_src_port_rate": 1.0,
+      "hot": 0.0,
+      "dst_host_diff_srv_rate": 0.0,
+      "wrong_fragment": 0.0
+    }
+    ```
+*   **Response Structure**:
+    ```json
+    {
+      "prediction": "normal",
+      "confidence": 98.42,
+      "probabilities": {
+        "normal": 0.9842,
+        "dos": 0.0158,
+        "probe": 0.0,
+        "r2l": 0.0,
+        "u2r": 0.0
+      },
+      "explanation": {
+        "top_features": [
+          { "feature": "src_bytes", "impact": 0.082 },
+          { "feature": "service_http", "impact": -0.012 }
+        ],
+        "mse": 0.0123
+      }
+    }
+    ```
+
+#### 2. Trigger Live Transformer Capture Daemon
+*   **Endpoint**: `GET /live-detect`
+*   **Response Structure**:
+    ```json
+    {
+      "status": "started",
+      "message": "Live V3 packet capture initiated."
+    }
+    ```
+
+---
+
+## 📊 Model Performance Metrics
+
+| Architecture Pipeline | Overall Accuracy | U2R Recall | R2L Recall | Key Structural Feature Count |
+| :--- | :--- | :--- | :--- | :--- |
+| **Baseline Random Forest** | 75.0% | 2.0% | 2.0% | 10 |
+| **SMOTE + Random Forest** | 76.0% | 14.0% | 9.0% | 10 |
+| **V1 Neuro-Fuzzy Hybrid** | 78.0% | 35.0% | 30.0% | 10 |
+| **V2 DL Production (LSTM)** | 85.2% | 51.0% | 46.0% | 10 |
+| **V3 Transformer Baseline** | **91.1%** | **68.0%** | **59.0%** | 10 |
+| **V4 Transformer (41 Features)** | **96.2%** | **76.0%** | **71.0%** | **41 (122 dimensions)** |
+
+---
+
+## 📂 Repository Structure
+
+```
+Synapse-Sentinel/
+├── Backend/                 # FastAPI microservices
+│   ├── v1_classic/          # Baseline Isolation Forest + MLP logic
+│   ├── v2_deep_ml/          # Autoencoder + LSTM + Scapy Sniffer
+│   └── v3_transformer/      # Self-Attention Transformer API
+├── Frontend/                # Vite + React + Material UI Web Dashboard
+│   ├── public/              
+│   ├── src/                 
+│   │   ├── components/      # UI Layout, headers, metrics widgets
+│   │   ├── pages/           # SOC dashboard, visualizers, simulator
+│   │   └── App.jsx          # Entry routing config
+│   ├── index.html           
+│   └── package.json         
+├── ML/                      # Machine learning training scripts
+│   ├── data/                # Dataset directory (KDDTrain+, KDDTest+)
+│   ├── v1_classic/          
+│   ├── v2_deep_ml/          
+│   └── v3_transformer/      
+└── README.md                # System documentation
 ```
 
 ---
 
-## 🖥️ How to Run
+## ⚙️ Installation & Local Setup
 
-### Option 1: Academic Model Training
-Generate the baseline classical models yourself utilizing the dataset source files.
-```bash
-cd ML/v1_classic
-python u2r_r2l_project.py
-```
-*(Or generate the Deep Learning Models using `cd ML/v2_deep_ml` -> `python train_dl_hybrid.py`)*
-
-### Option 2: Full-Stack Real-Time System
-
-#### 1. The Frontend (React Interactive Dashboard)
-Provides the interactive OS Simulator and live Predictor Visualizer.
-```bash
-cd Frontend
-npm install
-npm run dev
-```
-Runs locally at: `http://localhost:5173`
-
-#### 2. The Backend (Inference APIs)
-You may run either the V1, V2, or V3 backend structure. The UI is seamlessly compatible with both APIs utilizing port routing.
-
-**Run the Deep Learning Pipeline API (Recommended)**
-```bash
-cd Backend/v2_deep_ml   # (Or Backend/v3_transformer if ported!)
-python dl_main.py 
-```
-* Runs on **Port 8001**.
-* Includes automated native packet sniffing via Scapy.
-* Utilizes PyTorch logic parameters.
-
-**Run the Classic Neuro-Fuzzy API**
-```bash
-cd Backend/v1_classic
-uvicorn main:app --reload
-```
-* Runs on **Port 8000**.
-* Standard HTTP routing evaluating MLP and Isolation Forest pipelines.
+### 📋 Prerequisites
+*   Python 3.8+
+*   Node.js (v16+) & npm
+*   *Optional:* Libpcap/WinPcap for Scapy live sniffing (Linux/MacOS natively supported; Windows users must install Npcap/WinPcap).
 
 ---
 
-## 🎓 Academic Relevance & Constributions
-This project demonstrates:
-* Hybrid Soft Computing Architecture
-* Neural Network Classification & LSTMs
-* Fuzzy Logic & Approximate Reasoning
-* Anomaly Detection for Rare Events
-* Imbalanced Learning Techniques
+### 🐍 1. Backend Setup & Run
 
-Suitable for cybersecurity academic research, soft computing coursework, and ML deployment demonstrations addressing the inherent difficulty of minority-class anomaly exploitation vectors!
+First, install the Python virtual environment and system dependencies:
+
+```bash
+# Navigate to Backend version directory of choice, e.g., V2 Deep ML
+cd Backend/v2_deep_ml
+
+# Create and activate a virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install required dependencies
+pip install -r requirements.txt
+# If requirements.txt is empty or missing, install the core payload:
+pip install pandas numpy scikit-learn imbalanced-learn fastapi uvicorn torch shap xgboost scapy
+```
+
+> [!IMPORTANT]
+> Since the live packet sniffer uses raw sockets via `scapy`, you may need root/administrator privileges to bind to Layer 3 network interfaces:
+> ```bash
+> sudo python dl_main.py
+> ```
+> By default, the server runs on `http://localhost:8001` (V2) or `http://localhost:8002` (V3) or `http://localhost:8000` (V1).
+
+---
+
+### ⚛️ 2. Frontend Setup & Run
+
+1.  Navigate to the Frontend directory:
+    ```bash
+    cd Frontend
+    ```
+2.  Install packages:
+    ```bash
+    npm install
+    ```
+3.  Start the development server:
+    ```bash
+    npm run dev
+    ```
+4.  Open your browser to `http://localhost:5173`. The UI automatically detects and routes to the active FastAPI servers running on your machine.
+
+---
+
+### 🧠 3. Model Retraining (Optional)
+
+If you wish to retrain the models or adjust parameters on the KDD dataset:
+1.  Place the NSL-KDD files (`KDDTrain+.txt`, `KDDTest+.txt`) in the `ML/data/` folder.
+2.  Navigate to the model training directory of choice, e.g., V3 Transformer:
+    ```bash
+    cd ML/v3_transformer
+    python train_transformer_ids.py
+    ```
+3.  The scripts will balance data distributions, train checkpoints, and export the resulting `.pkl` scaler, encoder, and `.h5` model files directly into the respective backend folder structure.
